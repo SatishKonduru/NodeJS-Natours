@@ -1,135 +1,112 @@
-const fs = require("fs");
-
-const tours = JSON.parse(
-  fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
-);
-
-// MIDDLEWAREs
-exports.checkBody = (req, res, next) => {
-  if (!req.body.name || !req.body.price) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Missing Name or Price",
-    });
-  }
-  next();
-};
+const Tour = require("./../models/tourModel");
 
 // Get All Tours from File
-exports.getAllTours = (req, res) => {
-  res.status(200).json({
-    status: "success",
-    results: tours.length,
-    data: { tours },
-  });
+exports.getAllTours = async (req, res) => {
+  try {
+    const tours = await Tour.find({});
+    res.status(200).json({
+      status: "success",
+      results: tours.length,
+      data: {
+        tours,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      message: "Server Error",
+    });
+  }
 };
 
 // POST - Adding New Tour
-exports.createTour = (req, res) => {
-  const newTour = req.body;
-  newTour.id = tours.length + 1;
-  tours.push(newTour);
-  fs.writeFile(
-    `${__dirname}/../dev-data/data/tours-simple.json`,
-    JSON.stringify(tours),
-    (err) => {
-      res.status(201).json({
-        status: "success",
-        data: {
-          tour: newTour,
-        },
-      });
-    }
-  );
+exports.createTour = async (req, res) => {
+  try {
+    const newTour = await Tour.create(req.body);
+    res.status(201).json({
+      status: "success",
+      data: {
+        tour: newTour,
+      },
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: "fail",
+      message: err.message,
+    });
+  }
 };
 
 // Get by Tour Id
-exports.getTour = (req, res) => {
-  const tourId = req.params.id;
-  if (!tourId || isNaN(tourId)) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Invalid Id",
+exports.getTour = async (req, res) => {
+  try {
+    const tour = await Tour.findById(req.params.id);
+    if (!tour) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Tour Not Found",
+      });
+    }
+    res.status(200).json({
+      status: "success",
+      data: {
+        tour,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      message: "Server Error",
     });
   }
-  const tour = tours.find((el) => el.id === parseInt(tourId));
-  if (!tour) {
-    return res.status(404).json({
-      status: "fail",
-      message: "Tour Not Found",
-    });
-  }
-
-  res.status(200).json({
-    status: "success",
-    data: {
-      tour,
-    },
-  });
 };
 
 // PATCH - Updating tour
-exports.updateTour = (req, res) => {
-  const tourId = req.params.id;
-
-  if (!tourId || isNaN(tourId)) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Invalid Id",
+exports.updateTour = async (req, res) => {
+  try {
+    const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
     });
-  }
-  const tour = tours.find((el) => el.id === parseInt(tourId));
-  if (!tour) {
-    return res.status(404).json({
-      status: "fail",
-      message: "Tour Not Found",
-    });
-  }
-
-  const updatedTour = { ...tour, ...req.body };
-  const index = tours.findIndex((el) => el.id === parseInt(tourId));
-  tours[index] = updatedTour;
-  fs.writeFile(
-    `${__dirname}/dev-data/data/tours-simple.json`,
-    JSON.stringify(tours),
-    (err) => {
-      res.status(200).json({
-        status: "succcess",
-        data: {
-          tour: updatedTour,
-        },
+    if (!tour) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Tour Not Found",
       });
     }
-  );
+    res.status(200).json({
+      status: "success",
+      data: {
+        tour,
+      },
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: "fail",
+      message: err.message,
+    });
+  }
 };
 
 // Delete
-exports.deleteTour = (req, res) => {
-  const tourId = req.params.id;
-
-  if (!tourId || isNaN(tourId)) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Invalid Id",
-    });
-  }
-  const tour = tours.find((el) => el.id === parseInt(tourId));
-  if (!tour) {
-    return res.status(404).json({
-      status: "fail",
-      message: "Tour Not Found",
-    });
-  }
-  const index = tours.indexOf(tour);
-  tours.splice(index, 1);
-  fs.writeFile(
-    `${__dirname}/dev-data/data/tours-simple.json`,
-    JSON.stringify(tours),
-    (err) => {
-      res.status(200).json({
-        status: "succcess",
-        data: null,
+exports.deleteTour = async (req, res) => {
+  try {
+    const tour = await Tour.findByIdAndDelete(req.params.id);
+    if (!tour) {
+      return res.status(404).json({
+        status: "fail",
+        message: "Tour Not Found",
       });
     }
-  );
+    res.status(204).json({
+      status: "success",
+      data: null,
+      // message: "Tour Deleted Successfully",
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      message: "Server Error",
+    });
+  }
 };

@@ -1,9 +1,13 @@
 const Tour = require("./../models/tourModel");
+const APIFeatures = require("./../utils/apiFeatures");
 
 // Get All Tours from File
 exports.getAllTours = async (req, res) => {
   try {
-    const tours = await Tour.find({});
+    const features = new APIFeatures(Tour.find(), req.query).filter().sort();
+    const tours = await features.query;
+
+    // const tours = await Tour.find({});
     res.status(200).json({
       status: "success",
       results: tours.length,

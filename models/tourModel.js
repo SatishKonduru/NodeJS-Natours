@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const slugify = require("slugify");
 const tourSchema = new mongoose.Schema(
   {
     name: {
@@ -8,6 +8,7 @@ const tourSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    slug: String,
     duration: {
       type: Number,
       required: [true, "A Tour must have duration"],
@@ -57,6 +58,10 @@ const tourSchema = new mongoose.Schema(
       default: Date.now(),
     },
     startDates: [Date],
+    secretTour: {
+      type: Boolean,
+      defualt: false,
+    },
   },
   {
     toJSON: {
@@ -70,6 +75,50 @@ const tourSchema = new mongoose.Schema(
 
 tourSchema.virtual("durationWeeks").get(function () {
   return this.duration / 7;
+});
+
+// Document Middleware - Runs before(pre-hooks)/after(post-hooks) .save & .create()
+// Not works with .insertMany(), .findOneById(), .findOneByIdAndUpdate()
+tourSchema.pre("save", function (next) {
+  this.slug = slugify(this.name, { lower: true });
+  next();
+});
+
+tourSchema.pre("save", function (next) {
+  console.log("Document will save in a moment....");
+  next();
+});
+
+tourSchema.post("save", function (doc, next) {
+  console.log(doc);
+  next();
+});
+
+// Query Middlewares
+// tourSchema.pre("find", function (next) {
+//   this.find({ secretTour: { $ne: true } });
+//   next();
+// });
+// tourSchema.pre("findOne", function (next) {
+//   this.find({ secretTour: { $ne: true } });
+//   next();
+// });
+tourSchema.pre(/^find/, function (next) {
+  this.start = Date.now();
+  this.find({ secretTour: { $ne: true } });
+  next();
+});
+tourSchema.post(/^find/, function (docs, next) {
+  // console.log(docs);
+  console.log(`Query tooks ${Date.now() - this.start} milliseconds`);
+  next();
+});
+
+// Aggregation Middleware
+tourSchema.pre("aggregate", function (next) {
+  console.log(this.pipeline());
+  this.pipeline().unshift({ $match: { secretTour: { $ne: true } } });
+  next();
 });
 
 const Tour = mongoose.model("Tour", tourSchema);

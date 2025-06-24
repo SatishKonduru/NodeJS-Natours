@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const slugify = require("slugify");
+const validator = import("validator");
 const tourSchema = new mongoose.Schema(
   {
     name: {
@@ -7,6 +8,9 @@ const tourSchema = new mongoose.Schema(
       required: [true, "A Tour must have a name"],
       unique: true,
       trim: true,
+      maxlength: [40, "Tour name must have lesstha 40 characters"],
+      minlength: [10, "Tour name must have more or eqaul to 10 characters"],
+      // validate: [validator.isAlpha, 'Tour name must contain only characters not digits']
     },
     slug: String,
     duration: {
@@ -28,6 +32,8 @@ const tourSchema = new mongoose.Schema(
     ratingsAverage: {
       type: Number,
       default: 4.5,
+      min: [1, "Rating must be above 1.0"],
+      max: [5, "Rating must be below 5.0"],
     },
     ratingsQuantity: {
       type: Number,
@@ -37,7 +43,15 @@ const tourSchema = new mongoose.Schema(
       type: Number,
       required: [true, "A Tour must have a Price"],
     },
-    priceDiscount: Number,
+    priceDiscount: {
+      type: Number,
+      validate: {
+        validator: function (val) {
+          return val < this.price;
+        },
+        message: `Discount price ({value}) should be below regular price`,
+      },
+    },
     summary: {
       type: String,
       trim: true,
@@ -108,6 +122,7 @@ tourSchema.pre(/^find/, function (next) {
   this.find({ secretTour: { $ne: true } });
   next();
 });
+
 tourSchema.post(/^find/, function (docs, next) {
   // console.log(docs);
   console.log(`Query tooks ${Date.now() - this.start} milliseconds`);

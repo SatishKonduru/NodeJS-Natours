@@ -3,6 +3,7 @@ const express = require("express");
 const morgon = require("morgan");
 
 const AppError = require("./utils/appError");
+const globalErrorHandler = require("./controllers/errorController");
 
 const tourRoutes = require("./routes/tourRoutes");
 const userRoutes = require("./routes/userRoutes");
@@ -17,7 +18,7 @@ app.use(express.static(`${__dirname}/public`));
 app.use("/api/v1/tours", tourRoutes);
 
 app.use("/api/v1/users", userRoutes);
-
+app.use(globalErrorHandler);
 // app.use((err, req, res, next) => {
 //   // err.statusCode = err.statusCode || 500;
 //   // err.status = err.status || "error";

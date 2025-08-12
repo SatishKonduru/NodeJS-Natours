@@ -47,6 +47,11 @@ module.exports = (err, req, res, next) => {
     return new AppError(message, 400);
   };
 
+  const handleJWTError = () =>
+    new AppError("Invalid Token. Please Login.", 401);
+  const handleTokenExpiredError = () =>
+    new AppError("token Expired. Please Login Again.", 401);
+
   if ((process.env.NODE_ENV || " ").trim() === "development") {
     sendErrorDev(err, res);
   } else if ((process.env.NODE_ENV || " ").trim() === "production") {
@@ -54,7 +59,8 @@ module.exports = (err, req, res, next) => {
     if (err.name === "CastError") error = handleCastErrorDB(err);
     if (err.code === 11000) error = handleDuplicateFieldsDB(err);
     if (err.name === "ValidationError") error = handleValidationErrorDB(err);
-
+    if (err.name === "JsonWebTokenError") error = handleJWTError();
+    if (err.name === "TokenExpiredError") error = handleTokenExpiredError();
     sendErrorProd(error, res);
   }
 };

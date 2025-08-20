@@ -2,6 +2,7 @@ const AppError = require("../utils/appError");
 const User = require("./../models/userModel");
 const catchAsync = require("./../utils/catchAsync");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 require("dotenv").config();
 const { promisify } = require("util");
 
@@ -147,3 +148,32 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     );
   }
 });
+
+exports.resetPassword = async (req, res, next) => {
+  // 1. Get user based on the token
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(req.params.token)
+    .digest("hex");
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  // 2. if token has not expired and these is user, set the new password
+  if (!user) {
+    return next(new AppError("Token is invalid or has expired", 400));
+  }
+  user.password = req.body.password;
+  user.passwordConfirm = req.body.passwordConfirm;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+  await user.save();
+  // 3. Update changePasswordAt property for the user(done in userModel with pre-save middleware)
+  // 4. log the userin send JWT
+  const token = signToken(user._id);
+  res.status(200).json({
+    status: "success",
+    token,
+  });
+};

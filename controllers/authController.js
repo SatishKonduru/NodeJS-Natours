@@ -14,6 +14,17 @@ const signToken = (id) => {
   });
 };
 
+const createSendToken = (user, statusCode, res) => {
+  const token = signToken(user._id);
+  res.status(statusCode).json({
+    status: "success",
+    token,
+    data: {
+      user,
+    },
+  });
+};
+
 exports.signup = catchAsync(async (req, res, next) => {
   // const newUser = await User.create(req.body);
   const newUser = await User.create({
@@ -22,18 +33,19 @@ exports.signup = catchAsync(async (req, res, next) => {
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
   });
-  // const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
-  //   expiresIn: process.env.JWT_EXPIRES_IN,
-  // });
-  const token = signToken(newUser._id);
-
-  res.status(201).json({
-    status: "success",
-    token,
-    data: {
-      user: newUser,
-    },
+  const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
   });
+  // const token = signToken(newUser._id);
+
+  // res.status(201).json({
+  //   status: "success",
+  //   token,
+  //   data: {
+  //     user: newUser,
+  //   },
+  // });
+  createSendToken(newUser, 200, res);
 });
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -57,11 +69,12 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or Password", 401));
   }
   // if everything is OK, send token to client
-  const token = signToken(user._id);
-  res.status(200).json({
-    status: "success",
-    token,
-  });
+  // const token = signToken(user._id);
+  // res.status(200).json({
+  //   status: "success",
+  //   token,
+  // });
+  createSendToken(user, 200, res);
 });
 
 exports.protect = catchAsync(async (req, res, next) => {
@@ -171,9 +184,27 @@ exports.resetPassword = async (req, res, next) => {
   await user.save();
   // 3. Update changePasswordAt property for the user(done in userModel with pre-save middleware)
   // 4. log the userin send JWT
-  const token = signToken(user._id);
-  res.status(200).json({
-    status: "success",
-    token,
-  });
+  // const token = signToken(user._id);
+  // res.status(200).json({
+  //   status: "success",
+  //   token,
+  // });
+  createSendToken(user, 200, res);
 };
+
+exports.updatePassword = catchAsync(async (req, res, next) => {
+  // 1. Get user from collection
+  const user = await User.findById(req.user.id).select("+password");
+
+  // 2. Check if posted current password is correct
+  if (!(await user.correctPassword(req.body.passwordCurrent, user.password))) {
+    return next(new AppError("Your current password is wrong!", 401));
+  }
+
+  // 3. if so, update password
+  user.password = req.body.password;
+  user.passwordConfirm = req.body.passwordConfirm;
+  await user.save(); //here, User.findByIdAndUpdate will not work. Because for the findByIdAbdUpdate, 'pre' middlewares are not work
+  // 4 Log user and send JWT
+  createSendToken(user, 200, res);
+});
